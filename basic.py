@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import sympy as sp
 
 Q_pv = sp.symbols('Q_pv', positive=True)
@@ -6,13 +5,9 @@ Q_pv = sp.symbols('Q_pv', positive=True)
 PQ_wine = sp.symbols('PQ_wine', positive=True)
 CQ_wine = sp.symbols('CQ_wine', positive=True)
 
-utility = sp.sqrt(Q_pv*CQ_wine)
+utility = Q_pv**sp.S(1/2) * CQ_wine**sp.S(1/2)
 
-production_cost = sp.sqrt((Q_pv*2)**2 + PQ_wine**2) # sp.sqrt(Q_pv**2 + PQ_wine**2)
-print(production_cost)
-
-# plot utility function
-# sp.plotting.plot3d(utility, (Q_pv, 0, 1), (CQ_wine, 0, 1))
+production_cost = sp.sqrt((Q_pv*sp.S(19/9))**sp.S(2) + PQ_wine**sp.S(2)) # sp.sqrt(Q_pv**2 + PQ_wine**2)
 
 budget = sp.symbols("budget", positive=True)
 max_utility = sp.symbols('max_utility', positive=True)
@@ -25,12 +20,12 @@ ppf = general_ppf.subs({budget: sp.S(100)})
 
 ratio = sp.diff(ppf, Q_pv)
 
-    
-(mu, qpv) = optimum = sp.solve([
+optimum = sp.solve([
     sp.Eq(ppf, general_indifference_curve), 
     sp.Eq(ratio, sp.diff(general_indifference_curve, Q_pv))
-], (max_utility, Q_pv))[0]
-
+], (max_utility, Q_pv))
+print('optimum', optimum)
+(mu, qpv) = optimum[0]
 print("maximum utility resulting from production budget:", mu)
 
 tangent = ratio.subs({Q_pv:qpv}) * ( Q_pv - qpv) + ppf.subs({Q_pv:qpv})
