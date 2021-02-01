@@ -1,9 +1,7 @@
 import sympy as sp
-
 import colorsys
 
-from symbols import *
-
+from symbols import qx, qy, sy, dy, max_utility, rp, rq
 
 class Economy:
     def __init__(
@@ -19,14 +17,6 @@ class Economy:
         self.product_x = product_x
         self.product_y = product_y
         self.rgb = rgb
-
-        # symbols
-        qx = sp.symbols('qx', positive=True, real=True)  # quantity of good x
-        qy = sp.symbols('qy', positive=True, real=True)  # quantity of good x
-        sy = sp.symbols('sy', positive=True, real=True)  # supply of good y
-        dy = sp.symbols('dy', positive=True, real=True)  # demand of good y
-        # max utility that can be reached for a given budget
-        max_utility = sp.symbols('max_utility', positive=True, real=True)
 
         # ppf, indifference curve, price line
         self.utility = utility_function.subs({qy: dy})
@@ -57,8 +47,6 @@ class Economy:
         self.price_line = self.supply_price_ratio.subs(
             {qx: self.qpv}) * (qx - self.qpv) + self.ppf.subs({qx: self.qpv})
 
-        # RS and RD of good x
-        rq = sp.symbols('rq', positive=True, real=True)  # relative quantity
 
         self.rq_implied_supply = sp.solve([
             sp.Eq(rq, qx / sy),
@@ -74,9 +62,6 @@ class Economy:
         ], (qx, dy))[0]
         self.relative_demand = - \
             self.demand_price_ratio.subs({qx: self.rq_implied_demand[0]})
-
-        # for trade
-        rp = sp.symbols('rp', positive=True, real=True)  # relative price
 
         self.rp_implied_qx = sp.solve(
             self.supply_price_ratio + rp,  # rp is stated positive, the actual slope is negative
@@ -102,8 +87,6 @@ class Economy:
                 (h + (difference-1.0) * 0.1) % 1, max(0, min(1, difference * l)), s)
             
     def plot_autarky(self, lim=(0, 1)):
-        qx = sp.symbols('qx', positive=True, real=True)  # quantity of good x
-
         # draw price lines only around the tanget spot
         price_line_length_per_x = (sp.N(self.supply_price_ratio.subs(
             {qx: self.qpv})) ** 2 + 1) ** 0.5
@@ -134,8 +117,6 @@ class Economy:
         return autarky_plot
 
     def plot_relative(self, lim=(0, 6)):
-        rq = sp.symbols('rq', positive=True, real=True)
-
         color = self.color_gen(self.rgb, 1.6)
         relative_plot = sp.plotting.plot(self.relative_supply, (rq, *lim),
                                          label=self.name + " RS " + self.product_x, show=False, line_color=next(color))
@@ -161,10 +142,6 @@ class Economy:
         return relative_plot
 
     def plot_trade(self, price_ratio, lim=(0, 1)):
-        # TODO: put all symbols into a module and load them to all files globally
-        qx = sp.symbols('qx', positive=True, real=True)  # quantity of good x
-        max_utility = sp.symbols('max_utility', positive=True, real=True)
-
         qx_under_trade = sp.solve(
             sp.Eq(self.supply_price_ratio, - price_ratio),
             qx
@@ -194,7 +171,7 @@ class Economy:
         further_plots = [
             sp.plotting.plot(trade_line, (qx, *lim), show=False,
                              label=self.name + " trade price line", line_color=next(color)),
-            sp.plotting.plot(trade_indifference_line, (qx, *lim), show=False,
+            sp.plotting.plot(trade_indifference_line, (qx, trade_optimum[0] - lim[1]/5, trade_optimum[0] + lim[1]/5), show=False,
                                          label=self.name + " trade indifference curve", line_color=next(color)),
             # sp.plotting.plot_implicit(sp.And()) trade triangles
         ]
