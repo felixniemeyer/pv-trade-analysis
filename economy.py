@@ -2,6 +2,8 @@ import sympy as sp
 
 import colorsys
 
+from symbols import *
+
 
 class Economy:
     def __init__(
@@ -56,7 +58,7 @@ class Economy:
             {qx: self.qpv}) * (qx - self.qpv) + self.ppf.subs({qx: self.qpv})
 
         # RS and RD of good x
-        rq = sp.symbols('rq', positive=True, real=True) # relative quantity
+        rq = sp.symbols('rq', positive=True, real=True)  # relative quantity
 
         self.rq_implied_supply = sp.solve([
             sp.Eq(rq, qx / sy),
@@ -72,33 +74,33 @@ class Economy:
         ], (qx, dy))[0]
         self.relative_demand = - \
             self.demand_price_ratio.subs({qx: self.rq_implied_demand[0]})
-            
+
         # for trade
-        rp = sp.symbols('rp', positive=True, real=True) # relative price
-        
+        rp = sp.symbols('rp', positive=True, real=True)  # relative price
+
         self.rp_implied_qx = sp.solve(
-            self.supply_price_ratio + rp, # rp is stated positive, the actual slope is negative
+            self.supply_price_ratio + rp,  # rp is stated positive, the actual slope is negative
             qx
         )[0]
-        
+
         self.rp_implied_sy = self.ppf.subs({qx: self.rp_implied_qx})
-        
+
         self.demand_rp_implied_qx = sp.solve(
             self.demand_price_ratio + rp,
             qx
         )[0]
-        
-        self.demand_rp_implied_dy = self.indifference_curve.subs({qx: self.demand_rp_implied_qx})
 
-    # plotting 
+        self.demand_rp_implied_dy = self.indifference_curve.subs(
+            {qx: self.demand_rp_implied_qx})
+
+    # plotting
     def color_gen(self, rgb, difference=1.2):
         while True:
             yield rgb
             (h, l, s) = colorsys.rgb_to_hls(*rgb)
             rgb = colorsys.hls_to_rgb(
                 (h + (difference-1.0) * 0.1) % 1, max(0, min(1, difference * l)), s)
-
-
+            
     def plot_autarky(self, lim=(0, 1)):
         qx = sp.symbols('qx', positive=True, real=True)  # quantity of good x
 
@@ -158,32 +160,45 @@ class Economy:
 
         return relative_plot
 
-    def plot_trade(self, price_ratio, lim=()):
-        qx = sp.symbols('qx', positive=True, real=True) 
-        
+    def plot_trade(self, price_ratio, lim=(0, 1)):
+        # TODO: put all symbols into a module and load them to all files globally
+        qx = sp.symbols('qx', positive=True, real=True)  # quantity of good x
+        max_utility = sp.symbols('max_utility', positive=True, real=True)
+
         qx_under_trade = sp.solve(
             sp.Eq(self.supply_price_ratio, - price_ratio),
             qx
         )[0]
-
-        print(qx_under_trade)
-
         qy_under_trade = self.ppf.subs({qx: qx_under_trade})
 
-        print(qy_under_trade)
-
         trade_line = - price_ratio * (qx - qx_under_trade) + qy_under_trade
+        
+        # look for qy and utility 
+        trade_optimum = sp.solve([
+            sp.Eq(self.general_indifference_curve, trade_line), 
+            sp.diff(self.general_indifference_curve, qx) + price_ratio, # negate price ratio
+        ], (qx, max_utility))[0]
+        
+        trade_indifference_line = self.general_indifference_curve.subs({
+            max_utility: trade_optimum[1]
+        })
+        
+        print(f"trade => max_utility={trade_optimum[1]}")
+        print(f"{self.name} q{self.product_x} autarky - trade = {self.qpv - trade_optimum[0]}")
 
         color = self.color_gen(self.rgb)
 
+        # trade_plot = self.plot_autarky(lim)
         trade_plot = sp.plotting.plot(self.ppf, (qx, *lim), show=False,
                                       label=self.name + " ppf", line_color=next(color))
         further_plots = [
             sp.plotting.plot(trade_line, (qx, *lim), show=False,
-                             label=self.name + " trade line", line_color=next(color)),
-            #            sp.plotting.plot(self.price_line, price_line_range, show=False,
-            #                             label=self.name + " price line", line_color=next(color)),
+                             label=self.name + " trade price line", line_color=next(color)),
+            sp.plotting.plot(trade_indifference_line, (qx, *lim), show=False,
+                                         label=self.name + " trade indifference curve", line_color=next(color)),
+            # sp.plotting.plot_implicit(sp.And()) trade triangles
         ]
+        
         for g in further_plots:
             trade_plot.extend(g)
 
