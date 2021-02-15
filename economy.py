@@ -36,10 +36,10 @@ class Economy:
             self.ppf_utility_d,
             sp.Eq(self.ppf, self.general_indifference_curve)
         ],
-            (max_utility, qx)
+            (qx, max_utility)
         )
 
-        (self.mu, self.qpv) = self.optimum[0]
+        (self.qpv, self.mu) = self.optimum[0]
 
         self.indifference_curve = self.general_indifference_curve.subs(
             {max_utility: self.mu})
@@ -85,6 +85,11 @@ class Economy:
             (h, l, s) = colorsys.rgb_to_hls(*rgb)
             rgb = colorsys.hls_to_rgb(
                 (h + (difference-1.0) * 0.1) % 1, max(0, min(1, difference * l)), s)
+            
+    def brighten_color(self, rgb):
+        (h, l, s) = colorsys.rgb_to_hls(*rgb)
+        return colorsys.hls_to_rgb(
+            h, 1 - (1 - l) * 0.33, s)
             
     def plot_autarky(self, lim=(0, 1)):
         # draw price lines only around the tanget spot
@@ -160,10 +165,15 @@ class Economy:
             max_utility: trade_optimum[1]
         })
         
-        print(f"trade => max_utility={trade_optimum[1]}")
-        print(f"{self.name} q{self.product_x} autarky - trade = {self.qpv - trade_optimum[0]}")
 
         color = self.color_gen(self.rgb)
+
+        impx, impy = sp.symbols(['impx', 'impy'])
+        
+        # values for trade triangle
+        (l, r) = (qx_under_trade, trade_optimum[0]) if qx_under_trade < trade_optimum[0] else (trade_optimum[0], qx_under_trade)
+        bottom = sp.N(trade_line.subs({qx: r}))
+        print(f"{self.name} trade {self.product_x} = {r - l}")
 
         # trade_plot = self.plot_autarky(lim)
         trade_plot = sp.plotting.plot(self.ppf, (qx, *lim), show=False,
@@ -173,7 +183,7 @@ class Economy:
                              label=self.name + " trade price line", line_color=next(color)),
             sp.plotting.plot(trade_indifference_line, (qx, trade_optimum[0] - lim[1]/5, trade_optimum[0] + lim[1]/5), show=False,
                                          label=self.name + " trade indifference curve", line_color=next(color)),
-            # sp.plotting.plot_implicit(sp.And()) trade triangles
+            sp.plotting.plot_implicit(sp.And(impx >= l, impx <= r, impy >= bottom, impy <= trade_line.subs({qx: impx})), x_var=(impx, *lim), y_var=(impy, *lim), show=False, line_color=self.brighten_color(self.rgb))
         ]
         
         for g in further_plots:

@@ -6,11 +6,11 @@ from symbols import qx, dy, sy, rp, rq, q_pv, q_wine
 
 SAVE_PLOTS = True
 SAVE_PREFIX = "plots/"
-DO_EXAMPLE = False
+DO_EXAMPLE = False 
 TRY_INVERSE_WORLD_RD = True
 PLOTS = [
-    "autarky",
-    "relative",
+#    "autarky",
+#    "relative",
     "trade"
 ]
 SKIP_TOT_CALCULATION = False
@@ -27,11 +27,11 @@ if DO_EXAMPLE:
     
     example.plot_autarky((0,200)).show()
 
-    utility_plot = sp.plotting.plot3d(example.utility, (qx, 0, 200), (dy, 0, 200))
+    utility_plot = sp.plotting.plot3d(example.utility, (qx, 0, 200), (dy, 0, 200), show=False)
     utility_plot.save('plots/example/utility.png')
     utility_plot.show()
 
-    production_costs_plot = sp.plotting.plot3d(example.production_costs, (qx, 0, 200), (sy, 0, 200))
+    production_costs_plot = sp.plotting.plot3d(example.production_costs, (qx, 0, 200), (sy, 0, 200), show=False)
     production_costs_plot.save('plots/example/production_costs.png')
     production_costs_plot.show()
     
@@ -72,7 +72,7 @@ if 'autarky' in PLOTS:
 world_relative_supply = sp.simplify(
     (eu.rp_implied_qx + cn.rp_implied_qx) / (eu.rp_implied_sy + cn.rp_implied_sy))
 world_relative_supply_price = sp.solve(
-    rq - world_relative_supply,
+    sp.Eq(rq, world_relative_supply), 
     rp
 )[0]
 
@@ -106,7 +106,7 @@ if 'relative' in PLOTS:
             print("it worked! wow, can plot world relative demand")
         except:
             print("well, we tried to inverse world relative demand, but honestly: findin the inverse for " +
-                  str(world_relative_demand) + " was just too complicated :/ ... for now ...")
+              str(world_relative_demand) + " was just too complicated :/ ... for now ...")
     eu_plot = eu.plot_relative(lim)
     cn_plot = cn.plot_relative(lim)
 
