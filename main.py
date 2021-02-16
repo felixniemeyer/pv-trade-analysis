@@ -71,8 +71,8 @@ lim = (0, 210) # set the area that should be plotted
 if 'autarky' in PLOTS: 
     save_dir = SAVE_PREFIX + 'autarky/'
     if SAVE_PLOTS: os.makedirs(save_dir, exist_ok=True)
-    eu_plot = eu.plotAutarky(lim)
-    cn_plot = cn.plotAutarky(lim)
+    eu_plot = eu.plot_autarky(lim)
+    cn_plot = cn.plot_autarky(lim)
 
     if(SAVE_PLOTS != False):
         eu_plot.save(save_dir + "eu.png")
