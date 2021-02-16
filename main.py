@@ -1,20 +1,20 @@
 import sympy as sp
 import matplotlib.pyplot as plt
+import time
 
-from economy import Economy 
+from economy import Economy
 from symbols import qx, dy, sy, rp, rq, q_pv, q_wine
 
 SAVE_PLOTS = True
 SAVE_PREFIX = "plots/"
 DO_EXAMPLE = False 
-TRY_INVERSE_WORLD_RD = True
 PLOTS = [
-#    "autarky",
-#    "relative",
+    "autarky",
+    "relative",
     "trade"
 ]
-SKIP_TOT_CALCULATION = False
 CLOSEUP_RELATIVE = True
+SHOW_GRAPHS = False
 
 if DO_EXAMPLE:
     example = Economy(
@@ -25,15 +25,16 @@ if DO_EXAMPLE:
         100,  # budget
     )
     
-    example.plot_autarky((0,200)).show()
+    autarky_plot = example.plot_autarky((0,200))
+    if SHOW_GRAPHS: autarky_plot.show()
 
     utility_plot = sp.plotting.plot3d(example.utility, (qx, 0, 200), (dy, 0, 200), show=False)
     utility_plot.save('plots/example/utility.png')
-    utility_plot.show()
+    if SHOW_GRAPHS: utility_plot.show()
 
     production_costs_plot = sp.plotting.plot3d(example.production_costs, (qx, 0, 200), (sy, 0, 200), show=False)
     production_costs_plot.save('plots/example/production_costs.png')
-    production_costs_plot.show()
+    if SHOW_GRAPHS: production_costs_plot.show()
     
     exit()
 
@@ -41,7 +42,7 @@ eu = Economy(
     'EU',
     'pv', 'wine',
     q_pv ** (2/3) * q_wine ** (1/3),
-    sp.sqrt(q_pv ** 2 + q_wine ** 2),
+    sp.sqrt((q_pv) ** 2 + q_wine ** 2),
     100,
     [0.1, 0.5, 0.8]
 )
@@ -64,68 +65,54 @@ if 'autarky' in PLOTS:
         eu_plot.save(SAVE_PREFIX + "autarky/eu.png")
         cn_plot.save(SAVE_PREFIX + "autarky/cn.png")
     eu_plot.extend(cn_plot)
-    if(SAVE_PLOTS != False):
+    if(SAVE_PLOTS != False): 
         eu_plot.save(SAVE_PREFIX + "autarky/joint.png")
-    eu_plot.show()
+    if SHOW_GRAPHS: eu_plot.show()
 
-# world RS
-world_relative_supply = sp.simplify(
-    (eu.rp_implied_qx + cn.rp_implied_qx) / (eu.rp_implied_sy + cn.rp_implied_sy))
-world_relative_supply_price = sp.solve(
-    sp.Eq(rq, world_relative_supply), 
-    rp
-)[0]
+class Clock:
+    def __init__(self): 
+        self.clock = time.perf_counter()
 
-print(sp.latex(world_relative_supply_price))
+    def tick(self, msg): 
+        diff = time.perf_counter() - self.clock
+        print(f'{msg}\nfinished in {diff:.4f}s\n')
+        self.clock = time.perf_counter()
+    
+c = Clock()
+world_relative_supply = (eu.supply_rp_implied_qx + cn.supply_rp_implied_qx) / (eu.supply_rp_implied_sy + cn.supply_rp_implied_sy)
+c.tick(f'world relative supply =\n{world_relative_supply}')
 
-if SKIP_TOT_CALCULATION: 
-    world_equi_rp = 0.8
-else: 
-    world_relative_demand = sp.simplify(
-        (eu.demand_rp_implied_qx + cn.demand_rp_implied_qx) / (eu.demand_rp_implied_dy + cn.demand_rp_implied_dy))
+world_relative_demand = (eu.demand_rp_implied_qx + cn.demand_rp_implied_qx) / (eu.demand_rp_implied_dy + cn.demand_rp_implied_dy)
+c.tick(f'world relative demand =\n{world_relative_demand}')
 
-    world_equi_rp = sp.nsolve(sp.Eq(world_relative_supply, world_relative_demand), 1)
-    print(f'world trade equilibrium relative price: {world_equi_rp}')
+world_equilibrium_rp = sp.nsolve(sp.Eq(world_relative_supply, world_relative_demand), 1)
+c.tick(f'world trade equilibrium relative price: \n{world_equilibrium_rp}')
 
 if 'relative' in PLOTS:
     lim = (0, 3)
-    wrp_plot = sp.plotting.plot(
-        world_relative_supply_price, (rq, *lim), show=False, line_color='black', label='world RS')
-    if TRY_INVERSE_WORLD_RD:
-        try:
-            print('w rd', world_relative_demand)
-            world_relative_demand_price = sp.solve(
-                rq - world_relative_demand,
-                rp
-            )[0]
-            print(world_relative_demand_price)
-            wrp_plot.extend(
-                sp.plotting.plot(world_relative_demand_price, (rq, *lim),
-                                 show=False, line_color='grey', label='world RD')
-            )
-            print("it worked! wow, can plot world relative demand")
-        except:
-            print("well, we tried to inverse world relative demand, but honestly: findin the inverse for " +
-              str(world_relative_demand) + " was just too complicated :/ ... for now ...")
+    wrs_plot = sp.plotting.plot_parametric(world_relative_supply, rp, (rp, *lim), show=False, line_color='black', label='world RS')
+    wrd_plot = sp.plotting.plot_parametric(world_relative_demand, rp, (rp, 0.2, lim[1]), show=False, line_color='black', label='world RD')
     eu_plot = eu.plot_relative(lim)
     cn_plot = cn.plot_relative(lim)
-
     if(SAVE_PLOTS != False):
         eu_plot.save(SAVE_PREFIX + "relative/eu.png")
         cn_plot.save(SAVE_PREFIX + "relative/cn.png")
+
     eu_plot.extend(cn_plot)
-    eu_plot.extend(wrp_plot)
+    eu_plot.extend(wrs_plot)
+    eu_plot.extend(wrd_plot)
     if(SAVE_PLOTS != False):
         eu_plot.save(SAVE_PREFIX + "relative/joint.png")
+
     if CLOSEUP_RELATIVE: 
         eu_plot.ylim = (0, 2.0)
         eu_plot.save(SAVE_PREFIX + "relative/joint-closeup.png")
-    eu_plot.show()
+    if SHOW_GRAPHS: eu_plot.show()
 
 if 'trade' in PLOTS:
     lim = (0, 210)
-    eu_plot = eu.plot_trade(world_equi_rp, lim)
-    cn_plot = cn.plot_trade(world_equi_rp, lim)
+    eu_plot = eu.plot_trade(world_equilibrium_rp, lim)
+    cn_plot = cn.plot_trade(world_equilibrium_rp, lim)
 
     if(SAVE_PLOTS != False):
         eu_plot.save(SAVE_PREFIX + "trade/eu.png")
@@ -133,4 +120,4 @@ if 'trade' in PLOTS:
     eu_plot.extend(cn_plot)
     if(SAVE_PLOTS != False):
         eu_plot.save(SAVE_PREFIX + "trade/joint.png")
-    eu_plot.show()
+    if SHOW_GRAPHS: eu_plot.show()

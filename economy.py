@@ -1,7 +1,17 @@
 import sympy as sp
 import colorsys
+import time
 
 from symbols import qx, qy, sy, dy, max_utility, rp, rq
+
+def measure(func): 
+    def wrapper(*args, **kwargs): 
+        print(f'starting calculation {func.__name__!r}')
+        clockStart = time.perf_counter()
+        func(*args, **kwargs)
+        elapsedSeconds = time.perf_counter() - clockStart
+        print(f'finished {func.__name__!r} in {elapsedSeconds:.4f} seconds \n')
+    return wrapper
 
 class Economy:
     def __init__(
@@ -22,61 +32,86 @@ class Economy:
         self.utility = utility_function.subs({qy: dy})
         self.production_costs = production_costs_function.subs({qy: sy})
 
+        # the following calculations rely on each other and need to be in order
+        self.calcPPF(budget)
+        self.calcAutarkyOptimum() 
+        self.calcIndifferenceCurve()
+        self.calcRelativeSupply()
+        self.calcRelativeDemand()
+        self.calcRelativePriceImpliedQuantities()
+
+    @measure
+    def calcPPF(self, budget): 
         self.ppf = sp.solve(sp.Eq(self.production_costs, budget), sy)[0]
+
+        self.ppf_slope = sp.diff(self.ppf, qx)
+
+    @measure
+    def calcAutarkyOptimum(self): 
+        self.ppf_utility = self.utility.subs({dy: self.ppf})
+        self.ppf_utility_d = sp.diff(self.ppf_utility, qx)
+        self.autarky_qx = sp.solve(
+            self.ppf_utility_d, 
+            qx
+        )[0]
+        self.autarky_qy = self.ppf.subs({qx: self.autarky_qx})
+        print(f"autarky optimal quantities: qx, qy =\n{self.autarky_qx}, {self.autarky_qy}")
+        self.autarky_price_line = self.ppf_slope.subs(
+            {qx: self.autarky_qx}) * (qx - self.autarky_qx) + self.ppf.subs({qx: self.autarky_qx})
+        
+    @measure
+    def calcIndifferenceCurve(self): 
+        self.autarky_max_utility = self.utility.subs({
+            qx: self.autarky_qx, 
+            dy: self.autarky_qy
+        })
 
         self.general_indifference_curve = sp.solve(
             sp.Eq(self.utility, max_utility), dy)[0]
 
-        self.supply_price_ratio = sp.diff(self.ppf, qx)
-
-        self.ppf_utility = self.utility.subs({dy: self.ppf})
-        self.ppf_utility_d = sp.diff(self.ppf_utility, qx)
-
-        self.optimum = sp.solve([
-            self.ppf_utility_d,
-            sp.Eq(self.ppf, self.general_indifference_curve)
-        ],
-            (qx, max_utility)
-        )
-
-        (self.qpv, self.mu) = self.optimum[0]
-
         self.indifference_curve = self.general_indifference_curve.subs(
-            {max_utility: self.mu})
-
-        self.price_line = self.supply_price_ratio.subs(
-            {qx: self.qpv}) * (qx - self.qpv) + self.ppf.subs({qx: self.qpv})
+            {max_utility: self.autarky_max_utility})
+        print("indifference curve =\n", self.indifference_curve)
 
 
+    @measure
+    def calcRelativeSupply(self): 
         self.rq_implied_supply = sp.solve([
-            sp.Eq(rq, qx / sy),
-            sp.Eq(self.ppf, sy)
-        ], (qx, sy))[0]
+            sp.Eq(rq, qx / self.ppf)
+        ], qx)[0][0]
+        print("rq implied supply =\n", self.rq_implied_supply)
         self.relative_supply = - \
-            self.supply_price_ratio.subs({qx: self.rq_implied_supply[0]})
-
-        self.demand_price_ratio = sp.diff(self.indifference_curve, qx)
+            self.ppf_slope.subs({qx: self.rq_implied_supply})
+        print("relative supply =\n", self.relative_supply)
+        
+    @measure 
+    def calcRelativeDemand(self): 
+        self.indifference_curve_slope = sp.diff(self.indifference_curve, qx)
         self.rq_implied_demand = sp.solve([
-            sp.Eq(rq, qx / dy),
-            sp.Eq(self.indifference_curve, dy)
-        ], (qx, dy))[0]
+            sp.Eq(rq, qx / self.indifference_curve)
+        ], qx)[0][0]
+        print("rq implied demand =\n", self.rq_implied_demand)
         self.relative_demand = - \
-            self.demand_price_ratio.subs({qx: self.rq_implied_demand[0]})
-
-        self.rp_implied_qx = sp.solve(
-            self.supply_price_ratio + rp,  # rp is stated positive, the actual slope is negative
+            self.indifference_curve_slope.subs({qx: self.rq_implied_demand})
+        print("relative demand =\n", self.relative_demand) 
+        
+    @measure
+    def calcRelativePriceImpliedQuantities(self): 
+        self.supply_rp_implied_qx = sp.solve(
+            sp.Eq(self.ppf_slope, - rp),  
             qx
         )[0]
-
-        self.rp_implied_sy = self.ppf.subs({qx: self.rp_implied_qx})
+        print("supply relative price implied qx =\n", self.supply_rp_implied_qx)
+        self.supply_rp_implied_sy = self.ppf.subs({qx: self.supply_rp_implied_qx})
+        print("supply relative price implied sy =\n", self.supply_rp_implied_sy)
 
         self.demand_rp_implied_qx = sp.solve(
-            self.demand_price_ratio + rp,
+            sp.Eq(self.indifference_curve_slope, - rp), 
             qx
         )[0]
-
-        self.demand_rp_implied_dy = self.indifference_curve.subs(
-            {qx: self.demand_rp_implied_qx})
+        print("demand relative price implied qx =\n", self.demand_rp_implied_qx)
+        self.demand_rp_implied_dy = self.indifference_curve.subs({qx: self.demand_rp_implied_qx})
+        print("demand relative price implied dy =\n", self.demand_rp_implied_dy)
 
     # plotting
     def color_gen(self, rgb, difference=1.2):
@@ -92,12 +127,12 @@ class Economy:
             h, 1 - (1 - l) * 0.33, s)
             
     def plot_autarky(self, lim=(0, 1)):
-        # draw price lines only around the tanget spot
-        price_line_length_per_x = (sp.N(self.supply_price_ratio.subs(
-            {qx: self.qpv})) ** 2 + 1) ** 0.5
+        # draw price lines only around the tangent spot
+        price_line_length_per_x = (sp.N(self.ppf_slope.subs(
+            {qx: self.autarky_qx})) ** 2 + 1) ** 0.5
         price_line_xrange = lim[1] / 3 / price_line_length_per_x
-        price_line_range = (qx, self.qpv - price_line_xrange,
-                            self.qpv + price_line_xrange)
+        price_line_range = (qx, self.autarky_qx - price_line_xrange,
+                            self.autarky_qx + price_line_xrange)
 
         color = self.color_gen(self.rgb)
 
@@ -106,7 +141,7 @@ class Economy:
         further_plots = [
             sp.plotting.plot(self.indifference_curve, price_line_range, show=False,
                              label=self.name + " indifference curve", line_color=next(color)),
-            sp.plotting.plot(self.price_line, price_line_range, show=False,
+            sp.plotting.plot(self.autarky_price_line, price_line_range, show=False,
                              label=self.name + " price line", line_color=next(color)),
         ]
         for g in further_plots:
@@ -148,7 +183,7 @@ class Economy:
 
     def plot_trade(self, price_ratio, lim=(0, 1)):
         qx_under_trade = sp.solve(
-            sp.Eq(self.supply_price_ratio, - price_ratio),
+            sp.Eq(self.ppf_slope, - price_ratio),
             qx
         )[0]
         qy_under_trade = self.ppf.subs({qx: qx_under_trade})
