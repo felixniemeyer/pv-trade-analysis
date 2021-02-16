@@ -2,9 +2,9 @@ import sympy as sp
 import colorsys
 import time
 
-from symbols import qx, qy, sy, dy, max_utility, rp, rq
+from symbols import *
 
-def measure(func): 
+def measure(func):
     def wrapper(*args, **kwargs): 
         print(f'starting calculation {func.__name__!r}')
         clockStart = time.perf_counter()
@@ -19,8 +19,7 @@ class Economy:
         name,
         product_x, product_y,
         utility_function,
-        production_costs_function,
-        budget,
+        ppf,
         rgb=(0, 0, 0)
     ):
         self.name = name
@@ -30,25 +29,24 @@ class Economy:
 
         # ppf, indifference curve, price line
         self.utility = utility_function.subs({qy: dy})
-        self.production_costs = production_costs_function.subs({qy: sy})
+        self.ppf = ppf
 
         # the following calculations rely on each other and need to be in order
-        self.calcPPF(budget)
-        self.calcAutarkyOptimum() 
-        self.calcIndifferenceCurve()
-        self.calcRelativeSupply()
-        self.calcRelativeDemand()
-        self.calcRelativePriceImpliedQuantities()
+        self.calc_ppf_slope()
+        self.calc_autarky_optimum() 
+        self.calc_indifference_curve()
+        self.calc_relative_supply()
+        self.calc_relative_demand()
+        self.calc_relative_price_implied_quantities()
 
     @measure
-    def calcPPF(self, budget): 
-        self.ppf = sp.solve(sp.Eq(self.production_costs, budget), sy)[0]
-
+    def calc_ppf_slope(self): 
         self.ppf_slope = sp.diff(self.ppf, qx)
 
     @measure
-    def calcAutarkyOptimum(self): 
+    def calc_autarky_optimum(self): 
         self.ppf_utility = self.utility.subs({dy: self.ppf})
+        print(f"ppf_utility =\n{self.ppf_utility}")
         self.ppf_utility_d = sp.diff(self.ppf_utility, qx)
         self.autarky_qx = sp.solve(
             self.ppf_utility_d, 
@@ -60,7 +58,7 @@ class Economy:
             {qx: self.autarky_qx}) * (qx - self.autarky_qx) + self.ppf.subs({qx: self.autarky_qx})
         
     @measure
-    def calcIndifferenceCurve(self): 
+    def calc_indifference_curve(self): 
         self.autarky_max_utility = self.utility.subs({
             qx: self.autarky_qx, 
             dy: self.autarky_qy
@@ -75,7 +73,7 @@ class Economy:
 
 
     @measure
-    def calcRelativeSupply(self): 
+    def calc_relative_supply(self): 
         self.rq_implied_supply = sp.solve([
             sp.Eq(rq, qx / self.ppf)
         ], qx)[0][0]
@@ -85,7 +83,7 @@ class Economy:
         print("relative supply =\n", self.relative_supply)
         
     @measure 
-    def calcRelativeDemand(self): 
+    def calc_relative_demand(self): 
         self.indifference_curve_slope = sp.diff(self.indifference_curve, qx)
         self.rq_implied_demand = sp.solve([
             sp.Eq(rq, qx / self.indifference_curve)
@@ -96,7 +94,7 @@ class Economy:
         print("relative demand =\n", self.relative_demand) 
         
     @measure
-    def calcRelativePriceImpliedQuantities(self): 
+    def calc_relative_price_implied_quantities(self): 
         self.supply_rp_implied_qx = sp.solve(
             sp.Eq(self.ppf_slope, - rp),  
             qx
@@ -156,28 +154,22 @@ class Economy:
 
         return autarky_plot
 
-    def plot_relative(self, lim=(0, 6)):
+    def plot_relative(self, limx, limy):
         color = self.color_gen(self.rgb, 1.6)
-        relative_plot = sp.plotting.plot(self.relative_supply, (rq, *lim),
+        relative_plot = sp.plotting.plot(self.relative_supply, (rq, *limx),
                                          label=self.name + " RS " + self.product_x, show=False, line_color=next(color))
         further_plots = [
-            sp.plotting.plot(self.relative_demand, (rq, *lim),
+            sp.plotting.plot(self.relative_demand, (rq, *limx),
                              label=self.name + " RD " + self.product_x, show=False, line_color=next(color))
         ]
         for p in further_plots:
             relative_plot.extend(p)
-        relative_plot.xlim = lim
-        relative_plot.ylim = lim
+        relative_plot.xlim = limx
+        relative_plot.ylim = limy
         relative_plot.xlabel = "Q_" + self.product_x + " / Q_" + self.product_y
         relative_plot.ylabel = "p_" + self.product_x + " / p_" + self.product_y
 
         relative_plot.legend = True
-
-        # relative_supply = sp.solve([
-        #     sp.Eq(Q_ratio, Q_pv / PQ_wine),
-        #     ppf,
-        # ])
-        # relative demand
 
         return relative_plot
 
