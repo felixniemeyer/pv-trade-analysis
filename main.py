@@ -11,7 +11,7 @@ q_wine = qy
 
 SAVE_PLOTS = True
 SAVE_PREFIX = "plots/"
-DO_EXAMPLE = False 
+DO_EXAMPLE = False
 PLOTS = [
     "autarky",
     "relative",
@@ -22,7 +22,7 @@ SHOW_GRAPHS = False
 
 def make_ellipsoid_ppf(max_pv, max_wine):
     general_ppf = sp.solve(
-        sp.Eq(sp.sqrt((q_pv/max_pv) ** 2 + (q_wine/max_wine) ** 2), 1),
+        sp.Eq(sp.sqrt((q_pv/max_pv) ** sp.Rational(2,1) + (q_wine/max_wine) ** sp.Rational(2,1)), 1),
         q_wine
     )[0]
     print(general_ppf)
@@ -34,12 +34,12 @@ if DO_EXAMPLE:
     example = Economy(
         'Honolulu',  # name of the trading agent
         'pv', 'wine',  # name of goods (x, y)
-        q_pv ** (1/2) * q_wine ** (1/2),  # utility
+        q_pv ** sp.Rational(1,2) * q_wine ** (sp.Rational(1,2)),  # utility
         make_ellipsoid_ppf(170,170), # ppf
         [0.2, 0.2, 0.2] # color for plotting
     )
     
-    autarky_plot = example.plotAutarky((0,200))
+    autarky_plot = example.plot_autarky((0,200))
     if SHOW_GRAPHS: autarky_plot.show()
 
     utility_plot = sp.plotting.plot3d(example.utility, (qx, 0, 200), (dy, 0, 200), show=False)
@@ -50,10 +50,12 @@ if DO_EXAMPLE:
     production_costs_plot.save(save_dir + 'ppf.png')
     if SHOW_GRAPHS: production_costs_plot.show()
     
+    exit()
+    
 eu = Economy(
     'EU',
     'pv', 'wine',
-    q_pv ** (2/3) * q_wine ** (1/3),
+    q_pv ** sp.Rational(2, 3) * q_wine ** sp.Rational(2, 3),
     make_ellipsoid_ppf(100,100),
     [0.1, 0.5, 0.8]
 )
@@ -61,7 +63,7 @@ eu = Economy(
 cn = Economy(
     'CN',
     'pv', 'wine',
-    q_pv ** (1/2) * q_wine ** (1/2),
+    q_pv ** sp.Rational(1, 2) * q_wine ** sp.Rational(1, 2),
     make_ellipsoid_ppf(200,100),
     [0.8, 0.0, 0.1]
 )

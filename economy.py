@@ -47,9 +47,10 @@ class Economy:
     def calc_autarky_optimum(self): 
         self.ppf_utility = self.utility.subs({dy: self.ppf})
         print(f"ppf_utility =\n{self.ppf_utility}")
-        self.ppf_utility_d = sp.diff(self.ppf_utility, qx)
+        self.ppf_utility_slope = sp.diff(self.ppf_utility, qx)
+        print(f"ppf_utility =\n{self.ppf_utility_slope}")
         self.autarky_qx = sp.solve(
-            self.ppf_utility_d, 
+            self.ppf_utility_slope, 
             qx
         )[0]
         self.autarky_qy = self.ppf.subs({qx: self.autarky_qx})
@@ -192,7 +193,6 @@ class Economy:
             max_utility: trade_optimum[1]
         })
         
-
         color = self.color_gen(self.rgb)
 
         impx, impy = sp.symbols(['impx', 'impy'])
@@ -207,9 +207,9 @@ class Economy:
                                       label=self.name + " ppf", line_color=next(color))
         further_plots = [
             sp.plotting.plot(trade_line, (qx, *lim), show=False,
-                             label=self.name + " trade price line", line_color=next(color)),
+                label=self.name + " trade price line", line_color=next(color)),
             sp.plotting.plot(trade_indifference_line, (qx, trade_optimum[0] - lim[1]/5, trade_optimum[0] + lim[1]/5), show=False,
-                                         label=self.name + " trade indifference curve", line_color=next(color)),
+                label=self.name + " trade indifference curve", line_color=next(color)),
             sp.plotting.plot_implicit(sp.And(impx >= l, impx <= r, impy >= bottom, impy <= trade_line.subs({qx: impx})), x_var=(impx, *lim), y_var=(impy, *lim), show=False, line_color=self.brighten_color(self.rgb))
         ]
         
