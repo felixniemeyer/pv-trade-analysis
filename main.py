@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 
-from economy import Economy
+from economy import Economy, make_ellipsoid_ppf
 from symbols import * #qx, dy, sy, rp, rq, q_pv, q_wine
 
 q_pv = qx
@@ -19,14 +19,6 @@ PLOTS = [
 ]
 CLOSEUP_RELATIVE = True
 SHOW_GRAPHS = False
-
-def make_ellipsoid_ppf(max_pv, max_wine):
-    general_ppf = sp.solve(
-        sp.Eq(sp.sqrt((q_pv/max_pv) ** sp.Rational(2,1) + (q_wine/max_wine) ** sp.Rational(2,1)), 1),
-        q_wine
-    )[0]
-    print(general_ppf)
-    return general_ppf
 
 if DO_EXAMPLE:
     save_dir = SAVE_PREFIX + "example/"
@@ -56,7 +48,7 @@ eu = Economy(
     'EU',
     'pv', 'wine',
     q_pv ** sp.Rational(2, 3) * q_wine ** sp.Rational(1, 3),
-    make_ellipsoid_ppf(100,100),
+    make_ellipsoid_ppf(100,110),
     [0.1, 0.5, 0.8]
 )
 
@@ -64,7 +56,7 @@ cn = Economy(
     'CN',
     'pv', 'wine',
     q_pv ** sp.Rational(1, 2) * q_wine ** sp.Rational(1, 2),
-    make_ellipsoid_ppf(200,100),
+    make_ellipsoid_ppf(190,100),
     [0.8, 0.0, 0.1]
 )
 
@@ -113,7 +105,7 @@ if 'relative' in PLOTS:
     limx = (0, float(2.3 * world_equilibrium_rq))
     limy = (0, float(2.3 * world_equilibrium_rp))
     wrs_plot = sp.plotting.plot_parametric(world_relative_supply, rp, (rp, *limy), show=False, line_color='black', label='world RS')
-    wrd_plot = sp.plotting.plot_parametric(world_relative_demand, rp, (rp, 0.2, limy[1]), show=False, line_color='black', label='world RD')
+    wrd_plot = sp.plotting.plot_parametric(world_relative_demand, rp, (rp, limy[1] / 10, limy[1]), show=False, line_color='black', label='world RD')
     eu_plot = eu.plot_relative(limx, limy)
     cn_plot = cn.plot_relative(limx, limy)
     if(SAVE_PLOTS != False):
