@@ -1,6 +1,7 @@
 import csv
 import plotly.graph_objects as go
 import plotly
+import os
 
 def aggregate(reader):
     byPartner = {}
@@ -33,7 +34,6 @@ def plot(byPartner, yearRange):
             xaxis_title="Trade year", yaxis_title="Trade volume [US$]"
         )
     )
-    print(byPartner)
     for partner, byTradeFlow in byPartner.items(): 
         for tradeFlow, byYear in byTradeFlow.items():
             x = []
@@ -49,13 +49,25 @@ def plot(byPartner, yearRange):
                 name=f'{partner}, {tradeFlow}'
             ))
 
-    fig.write_image("plots/real-data/eu-china-world-comtrade.svg", format="svg", engine="kaleido")
-    fig.write_image("plots/real-data/eu-china-world-comtrade.png", format="png", engine="kaleido")
+    return fig
     
-
-with open('./data/comtrade/eu-china-world-comtrade.csv') as csvFile:
+prefix = './data/comtrade/eu-pv-trade'
+csvFile = None
+try: 
+    csvFile = open(prefix + '.csv')
+except: 
+    csvFile = None
+    print(f"use {prefix}.query to download csv data from comtrade into {prefix}.csv\n then re-run this script.")
+    
+if csvFile != None:
     byPartner, yearRange = aggregate(csv.DictReader(csvFile))
-    plot(byPartner, yearRange)
+    fig = plot(byPartner, yearRange)
+    out_dir = "plots/real-data/"
+    os.makedirs(out_dir, exist_ok=True)
+    out_file_prefix = out_dir + "eu-pv-trade"
+    fig.write_image(out_file_prefix + ".svg", format="svg", engine="kaleido")
+    fig.write_image(out_file_prefix + ".png", format="png", engine="kaleido")
+    print(f"saved plot image files to {out_file_prefix}.*")
 
 
     
