@@ -38,7 +38,8 @@ class Economy:
         self.calc_indifference_curve()
         self.calc_relative_supply()
         self.calc_relative_demand()
-        self.calc_relative_price_implied_quantities()
+        self.calc_rp_implied_production()
+        self.calc_rp_implied_demand()
 
     @measure
     def calc_ppf_slope(self): 
@@ -95,22 +96,24 @@ class Economy:
         print("relative demand =\n", self.relative_demand) 
         
     @measure
-    def calc_relative_price_implied_quantities(self): 
-        self.supply_rp_implied_qx = sp.solve(
+    def calc_rp_implied_production(self): 
+        self.rp_implied_qx = sp.solve(
             sp.Eq(self.ppf_slope, - rp),  
             qx
         )[0]
-        print("supply relative price implied qx =\n", self.supply_rp_implied_qx)
-        self.supply_rp_implied_sy = self.ppf.subs({qx: self.supply_rp_implied_qx})
-        print("supply relative price implied sy =\n", self.supply_rp_implied_sy)
-
-        self.demand_rp_implied_qx = sp.solve(
-            sp.Eq(self.indifference_curve_slope, - rp), 
-            qx
-        )[0]
-        print("demand relative price implied qx =\n", self.demand_rp_implied_qx)
-        self.demand_rp_implied_dy = self.indifference_curve.subs({qx: self.demand_rp_implied_qx})
-        print("demand relative price implied dy =\n", self.demand_rp_implied_dy)
+        print("rp implied qx =\n", self.rp_implied_qx)
+        self.rp_implied_qy = self.ppf.subs({qx: self.rp_implied_qx})
+        print("rp implied qy =\n", self.rp_implied_qy)
+    
+    @measure
+    def calc_rp_implied_demand(self): 
+        self.rp_implied_trade_line = (-rp) * (qx - self.rp_implied_qx) + self.rp_implied_qy
+        rp_implied_trade_line_utility = self.utility.subs({dy: self.rp_implied_trade_line})
+        print("rp implied trade line utility =\n", rp_implied_trade_line_utility)
+        self.rp_implied_dx = sp.solve(rp_implied_trade_line_utility.diff(qx), (qx))[0]
+        print("rp implied dx =\n", self.rp_implied_dx)
+        self.rp_implied_dy = self.rp_implied_trade_line.subs({qx: self.rp_implied_dx})
+        print("rp implied dx =\n", self.rp_implied_dy)
 
     # plotting
     def color_gen(self, rgb, difference=1.2):
@@ -174,49 +177,37 @@ class Economy:
 
         return relative_plot
 
-    @measure
-    def calc_trade_production(self, price_ratio): 
-        trade_px = sp.solve(
-            sp.Eq(self.ppf_slope, - price_ratio),
-            qx
-        )[0]
-        trade_py = self.ppf.subs({qx: trade_px})
-        print(f"trade production =\n{trade_px}, {trade_py}")
-        return trade_px, trade_py
-    
-    @measure
-    def calc_trade_consumption(self, trade_line): 
-        trade_line_utility = self.utility.subs({dy: trade_line})
-        
-        trade_cx = sp.solve(sp.diff(trade_line_utility, qx), qx)[0]
-        trade_cy = trade_line.subs({qx: trade_cx})
-        print(f"trade consumption =\n{trade_cx}, {trade_cy}")
-        return trade_cx, trade_cy
-
     def plot_trade(self, trade_price_ratio, lim=(0, 1)):
-        trade_px, trade_py = self.calc_trade_production(trade_price_ratio)
-        trade_line = - trade_price_ratio * (qx - trade_px) + trade_py
-        trade_cx, trade_cy = self.calc_trade_consumption(trade_line)
-        trade_max_utility = self.utility.subs({qx: trade_cx, dy: trade_cy})
+        trade_qx = self.rp_implied_qx.subs({rp:trade_price_ratio})
+        trade_qy = self.rp_implied_qy.subs({rp:trade_price_ratio})
+        print(f"production under trade =\n{trade_qx}, {trade_qy}")
+        trade_line = self.rp_implied_trade_line.subs({rp:trade_price_ratio}) 
+        trade_dx = self.rp_implied_dx.subs({rp:trade_price_ratio})
+        trade_dy = self.rp_implied_dy.subs({rp:trade_price_ratio})
+        print(f"demand under trade =\n{trade_dx}, {trade_dy}")
+
+        trade_max_utility = self.utility.subs({qx: trade_dx, dy: trade_dy})
         trade_indifference_curve = self.general_indifference_curve.subs({max_utility: trade_max_utility})
         
-        color = self.color_gen(self.rgb)
-        impx, impy = sp.symbols(['impx', 'impy'])
-        
         # values for trade triangle
-        if trade_px < trade_cx:
-            flow = 'imports'
-            l = trade_px
-            r = trade_cx
-            bottom = trade_cy
-        else: 
+        if trade_dx < trade_qx:
             flow = 'exports'
-            l = trade_cx
-            r = trade_px
-            bottom = trade_py
+            l = trade_dx
+            r = trade_qx
+            bottom = trade_qy
+        else: 
+            flow = 'imports'
+            l = trade_qx
+            r = trade_dx
+            bottom = trade_dy
 
         print(f"{self.name} {flow} {r - l} {self.product_x}")
         print(f"utility change from {sp.N(self.autarky_max_utility)} => {trade_max_utility}\n")
+
+        color = self.color_gen(self.rgb)
+        
+        # for trade triangle implicit plot
+        impx, impy = sp.symbols(['impx', 'impy'])
 
         # trade_plot = self.plot_autarky(lim)
         trade_plot = sp.plotting.plot(self.ppf, (qx, *lim), show=False,
@@ -224,7 +215,7 @@ class Economy:
         further_plots = [
             sp.plotting.plot(trade_line, (qx, *lim), show=False,
                 label=self.name + " trade price line", line_color=next(color)),
-            sp.plotting.plot(trade_indifference_curve, (qx, trade_cx - lim[1]/5, trade_cx + lim[1]/5), show=False,
+            sp.plotting.plot(trade_indifference_curve, (qx, trade_dx - lim[1]/5, trade_dx + lim[1]/5), show=False,
                 label=self.name + " trade indifference curve", line_color=next(color)),
             sp.plotting.plot_implicit(sp.And(impx >= l, impx <= r, impy >= bottom, impy <= trade_line.subs({qx: impx})), x_var=(impx, *lim), y_var=(impy, *lim), show=False, line_color=self.brighten_color(self.rgb))
         ]

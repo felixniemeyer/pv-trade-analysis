@@ -55,7 +55,7 @@ if DO_EXAMPLE:
 eu = Economy(
     'EU',
     'pv', 'wine',
-    q_pv ** sp.Rational(1, 2) * q_wine ** sp.Rational(1, 2),
+    q_pv ** sp.Rational(2, 3) * q_wine ** sp.Rational(1, 3),
     make_ellipsoid_ppf(100,100),
     [0.1, 0.5, 0.8]
 )
@@ -94,10 +94,10 @@ class Clock:
         self.clock = time.perf_counter()
     
 c = Clock()
-world_relative_supply = (eu.supply_rp_implied_qx + cn.supply_rp_implied_qx) / (eu.supply_rp_implied_sy + cn.supply_rp_implied_sy)
+world_relative_supply = (eu.rp_implied_qx + cn.rp_implied_qx) / (eu.rp_implied_qy + cn.rp_implied_qy)
 c.tick(f'world relative supply =\n{world_relative_supply}')
 
-world_relative_demand = (eu.demand_rp_implied_qx + cn.demand_rp_implied_qx) / (eu.demand_rp_implied_dy + cn.demand_rp_implied_dy)
+world_relative_demand = (eu.rp_implied_dx + cn.rp_implied_dx) / (eu.rp_implied_dy + cn.rp_implied_dy)
 c.tick(f'world relative demand =\n{world_relative_demand}')
 
 world_equilibrium_rp = sp.nsolve(sp.Eq(world_relative_supply, world_relative_demand), 1)
