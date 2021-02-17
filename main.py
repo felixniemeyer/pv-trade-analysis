@@ -55,7 +55,7 @@ if DO_EXAMPLE:
 eu = Economy(
     'EU',
     'pv', 'wine',
-    q_pv ** sp.Rational(2, 3) * q_wine ** sp.Rational(2, 3),
+    q_pv ** sp.Rational(1, 2) * q_wine ** sp.Rational(1, 2),
     make_ellipsoid_ppf(100,100),
     [0.1, 0.5, 0.8]
 )

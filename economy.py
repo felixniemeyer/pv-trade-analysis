@@ -8,9 +8,10 @@ def measure(func):
     def wrapper(*args, **kwargs): 
         print(f'starting calculation {func.__name__!r}')
         clockStart = time.perf_counter()
-        func(*args, **kwargs)
+        val = func(*args, **kwargs)
         elapsedSeconds = time.perf_counter() - clockStart
         print(f'finished {func.__name__!r} in {elapsedSeconds:.4f} seconds \n')
+        return val
     return wrapper
 
 class Economy:
@@ -57,14 +58,13 @@ class Economy:
         print(f"autarky optimal quantities: qx, qy =\n{self.autarky_qx}, {self.autarky_qy}")
         self.autarky_price_line = self.ppf_slope.subs(
             {qx: self.autarky_qx}) * (qx - self.autarky_qx) + self.ppf.subs({qx: self.autarky_qx})
-        
-    @measure
-    def calc_indifference_curve(self): 
         self.autarky_max_utility = self.utility.subs({
             qx: self.autarky_qx, 
             dy: self.autarky_qy
         })
-
+        
+    @measure
+    def calc_indifference_curve(self): 
         self.general_indifference_curve = sp.solve(
             sp.Eq(self.utility, max_utility), dy)[0]
 
@@ -174,33 +174,49 @@ class Economy:
 
         return relative_plot
 
-    def plot_trade(self, price_ratio, lim=(0, 1)):
-        qx_under_trade = sp.solve(
+    @measure
+    def calc_trade_production(self, price_ratio): 
+        trade_px = sp.solve(
             sp.Eq(self.ppf_slope, - price_ratio),
             qx
         )[0]
-        qy_under_trade = self.ppf.subs({qx: qx_under_trade})
+        trade_py = self.ppf.subs({qx: trade_px})
+        print(f"trade production =\n{trade_px}, {trade_py}")
+        return trade_px, trade_py
+    
+    @measure
+    def calc_trade_consumption(self, trade_line): 
+        trade_line_utility = self.utility.subs({dy: trade_line})
+        
+        trade_cx = sp.solve(sp.diff(trade_line_utility, qx), qx)[0]
+        trade_cy = trade_line.subs({qx: trade_cx})
+        print(f"trade consumption =\n{trade_cx}, {trade_cy}")
+        return trade_cx, trade_cy
 
-        trade_line = - price_ratio * (qx - qx_under_trade) + qy_under_trade
-        
-        # look for qy and utility 
-        trade_optimum = sp.solve([
-            sp.Eq(self.general_indifference_curve, trade_line), 
-            sp.diff(self.general_indifference_curve, qx) + price_ratio, # negate price ratio
-        ], (qx, max_utility))[0]
-        
-        trade_indifference_line = self.general_indifference_curve.subs({
-            max_utility: trade_optimum[1]
-        })
+    def plot_trade(self, trade_price_ratio, lim=(0, 1)):
+        trade_px, trade_py = self.calc_trade_production(trade_price_ratio)
+        trade_line = - trade_price_ratio * (qx - trade_px) + trade_py
+        trade_cx, trade_cy = self.calc_trade_consumption(trade_line)
+        trade_max_utility = self.utility.subs({qx: trade_cx, dy: trade_cy})
+        trade_indifference_curve = self.general_indifference_curve.subs({max_utility: trade_max_utility})
         
         color = self.color_gen(self.rgb)
-
         impx, impy = sp.symbols(['impx', 'impy'])
         
         # values for trade triangle
-        (l, r) = (qx_under_trade, trade_optimum[0]) if qx_under_trade < trade_optimum[0] else (trade_optimum[0], qx_under_trade)
-        bottom = sp.N(trade_line.subs({qx: r}))
-        print(f"{self.name} trade {self.product_x} = {r - l}")
+        if trade_px < trade_cx:
+            flow = 'imports'
+            l = trade_px
+            r = trade_cx
+            bottom = trade_cy
+        else: 
+            flow = 'exports'
+            l = trade_cx
+            r = trade_px
+            bottom = trade_py
+
+        print(f"{self.name} {flow} {r - l} {self.product_x}")
+        print(f"utility change from {sp.N(self.autarky_max_utility)} => {trade_max_utility}\n")
 
         # trade_plot = self.plot_autarky(lim)
         trade_plot = sp.plotting.plot(self.ppf, (qx, *lim), show=False,
@@ -208,7 +224,7 @@ class Economy:
         further_plots = [
             sp.plotting.plot(trade_line, (qx, *lim), show=False,
                 label=self.name + " trade price line", line_color=next(color)),
-            sp.plotting.plot(trade_indifference_line, (qx, trade_optimum[0] - lim[1]/5, trade_optimum[0] + lim[1]/5), show=False,
+            sp.plotting.plot(trade_indifference_curve, (qx, trade_cx - lim[1]/5, trade_cx + lim[1]/5), show=False,
                 label=self.name + " trade indifference curve", line_color=next(color)),
             sp.plotting.plot_implicit(sp.And(impx >= l, impx <= r, impy >= bottom, impy <= trade_line.subs({qx: impx})), x_var=(impx, *lim), y_var=(impy, *lim), show=False, line_color=self.brighten_color(self.rgb))
         ]
